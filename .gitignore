@@ -41,6 +41,7 @@ Thumbs.db
 extracted/
 *.txt
 !README.md
+!requirements.txt
 
 # PDF files (if large)
 *.pdf

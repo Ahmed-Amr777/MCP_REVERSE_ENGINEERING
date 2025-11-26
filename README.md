@@ -31,18 +31,96 @@ This project provides tools for extracting register information from STM32 PDF d
 
 - **`server_mcp.py`**: MCP server that exposes all functionality as tools
 
-## Installation
+## Installation and Setup
 
 ### Prerequisites
 
+- Python 3.8 or higher
+- pip (Python package manager)
+
+### Step 1: Clone the Repository
+
 ```bash
-pip install pdfplumber pymupdf PyPDF2
+git clone https://github.com/Ahmed-Amr777/MCP_REVERSE_ENGINEERING.git
+cd MCP_REVERSE_ENGINEERING
 ```
 
-For MCP server:
+### Step 2: Create a Virtual Environment (Recommended)
+
 ```bash
-pip install mcp
+# On Windows
+python -m venv venv
+venv\Scripts\activate
+
+# On Linux/Mac
+python3 -m venv venv
+source venv/bin/activate
 ```
+
+### Step 3: Install Dependencies
+
+Install all required packages:
+
+```bash
+pip install pdfplumber pymupdf PyPDF2 mcp
+```
+
+Or install from a requirements file (if you create one):
+
+```bash
+pip install -r requirements.txt
+```
+
+**Required Dependencies:**
+- `pdfplumber` - PDF text and character extraction
+- `pymupdf` (PyMuPDF) - PDF image extraction and rendering
+- `PyPDF2` - PDF reading and basic operations
+- `mcp` - Model Context Protocol server framework
+
+### Step 4: Create Output Directory
+
+The scripts will automatically create the `extracted/` directory, but you can create it manually:
+
+```bash
+mkdir extracted
+```
+
+### Step 5: Configure PDF Path (Optional)
+
+If you want to use a default PDF path, you can modify the scripts:
+- `extractRawRegisters.py` - Line 230: Update `pdf_file` variable
+- `pdfReturnImages.py` - Line 7: Update `PDF_PATH` variable
+- `showTitles.py` - Update PDF path in the script
+
+### Step 6: Verify Installation
+
+Test the installation by running a simple script:
+
+```bash
+python searchRegister.py
+```
+
+Or test the MCP server:
+
+```bash
+python server_mcp.py
+```
+
+### Troubleshooting
+
+**If you encounter import errors:**
+- Make sure your virtual environment is activated
+- Verify all dependencies are installed: `pip list`
+- Try reinstalling: `pip install --upgrade pdfplumber pymupdf PyPDF2 mcp`
+
+**If PDF processing fails:**
+- Ensure the PDF file path is correct
+- Check that the PDF is not corrupted
+- Verify you have read permissions for the PDF file
+
+**Windows-specific issues:**
+- If `pymupdf` installation fails, try: `pip install --upgrade pip` first
+- For PyMuPDF, you may need: `pip install pymupdf` (not `fitz`)
 
 ## Usage
 
