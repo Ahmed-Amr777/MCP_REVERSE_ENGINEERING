@@ -1,30 +1,19 @@
 import asyncio
 from mcp.server import Server
 from mcp.types import Tool, TextContent
-import PyPDF2
 import os
 import json
 from pathlib import Path
 from extractRawRegisters import extract_raw_registers
-from searchRegister import search_register, get_register_by_name
+from searchRegister import search_register
 from pdfReturnImages import extract_images_from_pages, extract_page_as_image
+from pdfInfo import get_pdf_titles
 
 app = Server("my-custom-server")
 
 @app.list_tools()
 async def list_tools():
     return [
-        Tool(
-            name="read_pdf_titles",
-            description="Reads PDF file and extracts titles/headers from the first page",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "pdf_path": {"type": "string", "description": "Path to the PDF file"}
-                },
-                "required": ["pdf_path"]
-            }
-        ),
         Tool(
             name="extract_registers",
             description="Extract all registers from a PDF file. Returns registers with start_page, end_page, address_offset, reset_value, and content.",
@@ -50,18 +39,6 @@ async def list_tools():
             }
         ),
         Tool(
-            name="get_register",
-            description="Get a single register by exact name match. Returns the complete register data.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "register_name": {"type": "string", "description": "Register name to get"},
-                    "json_path": {"type": "string", "description": "Path to registers JSON file (default: extracted/registers.json)"}
-                },
-                "required": ["register_name"]
-            }
-        ),
-        Tool(
             name="extract_pdf_images",
             description="Extract images from PDF pages. Can extract embedded images or render full pages as images.",
             inputSchema={
@@ -77,38 +54,25 @@ async def list_tools():
                 },
                 "required": ["pdf_path", "start_page", "end_page"]
             }
+        ),
+        Tool(
+            name="get_pdf_titles",
+            description="Get PDF titles (table of contents) in a range and basic PDF information. Returns simple structure with title names and page numbers.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "pdf_path": {"type": "string", "description": "Path to the PDF file"},
+                    "start_title": {"type": "integer", "description": "Starting title number (1-indexed, default: 1)"},
+                    "end_title": {"type": "integer", "description": "Ending title number (1-indexed, default: None = all titles)"}
+                },
+                "required": ["pdf_path"]
+            }
         )
     ]
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict):
-    if name == "read_pdf_titles":
-        pdf_path = arguments.get("pdf_path", "")
-        
-        if not os.path.exists(pdf_path):
-            return [TextContent(type="text", text=f"Error: File not found at {pdf_path}")]
-        
-        try:
-            with open(pdf_path, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                num_pages = len(reader.pages)
-                
-                # Extract text from first page
-                first_page = reader.pages[0]
-                text = first_page.extract_text()
-                lines = text.split('\n')
-                titles = [line.strip() for line in lines if line.strip()]
-                
-                result = f"PDF: {os.path.basename(pdf_path)}\n"
-                result += f"Total Pages: {num_pages}\n"
-                result += f"Number of Headers/Titles: {len(titles)}\n\n"
-                result += "Headers/Titles:\n" + "\n".join(titles[:10])  # First 10 titles
-                
-                return [TextContent(type="text", text=result)]
-        except Exception as e:
-            return [TextContent(type="text", text=f"Error reading PDF: {str(e)}")]
-    
-    elif name == "extract_registers":
+    if name == "extract_registers":
         pdf_path = arguments.get("pdf_path", "")
         output_dir = Path(arguments.get("output_dir", "extracted"))
         
@@ -171,24 +135,6 @@ async def call_tool(name: str, arguments: dict):
         except Exception as e:
             return [TextContent(type="text", text=f"Error searching registers: {str(e)}")]
     
-    elif name == "get_register":
-        register_name = arguments.get("register_name", "")
-        json_path = arguments.get("json_path", "extracted/registers.json")
-        
-        if not register_name:
-            return [TextContent(type="text", text="Error: register_name is required")]
-        
-        try:
-            register = get_register_by_name(register_name, json_path)
-            
-            if not register:
-                return [TextContent(type="text", text=f"Register '{register_name}' not found")]
-            
-            result_text = json.dumps(register, indent=2, ensure_ascii=False)
-            return [TextContent(type="text", text=result_text)]
-        except Exception as e:
-            return [TextContent(type="text", text=f"Error getting register: {str(e)}")]
-    
     elif name == "extract_pdf_images":
         pdf_path = arguments.get("pdf_path", "")
         start_page = arguments.get("start_page", 1)
@@ -242,6 +188,21 @@ async def call_tool(name: str, arguments: dict):
         except Exception as e:
             return [TextContent(type="text", text=f"Error extracting images: {str(e)}")]
     
+    elif name == "get_pdf_titles":
+        pdf_path = arguments.get("pdf_path", "")
+        start_title = arguments.get("start_title", 1)
+        end_title = arguments.get("end_title", None)
+        
+        if not os.path.exists(pdf_path):
+            return [TextContent(type="text", text=f"Error: PDF file not found at {pdf_path}")]
+        
+        try:
+            result = get_pdf_titles(pdf_path, start_title, end_title)
+            # Return JSON directly as string
+            return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
+        except Exception as e:
+            return [TextContent(type="text", text=f"Error getting PDF titles: {str(e)}")]
+    
     else:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -252,3 +213,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+

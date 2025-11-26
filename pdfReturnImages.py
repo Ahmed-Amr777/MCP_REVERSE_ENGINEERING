@@ -108,68 +108,70 @@ def extract_page_as_image(pdf_path: str, page_num: int, output_dir: Path, dpi: i
         # If not relative, return the path as is
         return str(image_path)
 
-print("="*60)
-print("EXTRACTING IMAGES FROM PDF PAGES")
-print("="*60)
-print(f"\nPDF: {PDF_PATH}")
-print(f"Pages: {START_PAGE} to {END_PAGE}")
-print(f"Output Directory: {OUTPUT_DIR}\n")
+# Usage - only run when executed directly, not when imported
+if __name__ == "__main__":
+    print("="*60)
+    print("EXTRACTING IMAGES FROM PDF PAGES")
+    print("="*60)
+    print(f"\nPDF: {PDF_PATH}")
+    print(f"Pages: {START_PAGE} to {END_PAGE}")
+    print(f"Output Directory: {OUTPUT_DIR}\n")
 
-# Extract embedded images
-print("[Extracting] Embedded images from pages...")
-images_result = extract_images_from_pages(PDF_PATH, START_PAGE, END_PAGE, OUTPUT_DIR)
+    # Extract embedded images
+    print("[Extracting] Embedded images from pages...")
+    images_result = extract_images_from_pages(PDF_PATH, START_PAGE, END_PAGE, OUTPUT_DIR)
 
-# Also render full pages as images
-print("\n[Rendering] Full page images...")
-full_page_images = []
-for page_num in range(START_PAGE, END_PAGE + 1):
-    page_image_path = extract_page_as_image(PDF_PATH, page_num, OUTPUT_DIR)
-    full_page_images.append({
-        "page_number": page_num,
-        "image_path": page_image_path
-    })
+    # Also render full pages as images
+    print("\n[Rendering] Full page images...")
+    full_page_images = []
+    for page_num in range(START_PAGE, END_PAGE + 1):
+        page_image_path = extract_page_as_image(PDF_PATH, page_num, OUTPUT_DIR)
+        full_page_images.append({
+            "page_number": page_num,
+            "image_path": page_image_path
+        })
 
-# Combine results
-output_data = {
-    "pdf_path": PDF_PATH,
-    "pages_range": {
-        "start": START_PAGE,
-        "end": END_PAGE
-    },
-    "embedded_images": images_result,
-    "full_page_images": full_page_images,
-    "summary": {
-        "total_embedded_images": images_result["total_images"],
-        "total_full_page_images": len(full_page_images),
-        "pages_with_images": len(images_result["pages"])
+    # Combine results
+    output_data = {
+        "pdf_path": PDF_PATH,
+        "pages_range": {
+            "start": START_PAGE,
+            "end": END_PAGE
+        },
+        "embedded_images": images_result,
+        "full_page_images": full_page_images,
+        "summary": {
+            "total_embedded_images": images_result["total_images"],
+            "total_full_page_images": len(full_page_images),
+            "pages_with_images": len(images_result["pages"])
+        }
     }
-}
 
-# Save results to JSON
-output_file = OUTPUT_DIR / "images_extraction_result.json"
-with open(output_file, 'w', encoding='utf-8') as f:
-    json.dump(output_data, f, indent=2, ensure_ascii=False)
+    # Save results to JSON
+    output_file = OUTPUT_DIR / "images_extraction_result.json"
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(output_data, f, indent=2, ensure_ascii=False)
 
-print(f"\n[Saved] Results JSON: {output_file}")
+    print(f"\n[Saved] Results JSON: {output_file}")
 
-# Print summary
-print("\n[Summary]")
-print(f"  Embedded Images Found: {images_result['total_images']}")
-print(f"  Full Page Images: {len(full_page_images)}")
-print(f"  Pages with Embedded Images: {len(images_result['pages'])}")
+    # Print summary
+    print("\n[Summary]")
+    print(f"  Embedded Images Found: {images_result['total_images']}")
+    print(f"  Full Page Images: {len(full_page_images)}")
+    print(f"  Pages with Embedded Images: {len(images_result['pages'])}")
 
-if images_result['pages']:
-    print("\n  Images by Page:")
-    for page_info in images_result['pages']:
-        print(f"    Page {page_info['page_number']}: {page_info['image_count']} image(s)")
-        for img in page_info['images']:
-            print(f"      - {img['filename']} ({img['format']}, {img['size_bytes']} bytes)")
+    if images_result['pages']:
+        print("\n  Images by Page:")
+        for page_info in images_result['pages']:
+            print(f"    Page {page_info['page_number']}: {page_info['image_count']} image(s)")
+            for img in page_info['images']:
+                print(f"      - {img['filename']} ({img['format']}, {img['size_bytes']} bytes)")
 
-print(f"\n  Full Page Images:")
-for page_img in full_page_images:
-    print(f"    Page {page_img['page_number']}: {page_img['image_path']}")
+    print(f"\n  Full Page Images:")
+    for page_img in full_page_images:
+        print(f"    Page {page_img['page_number']}: {page_img['image_path']}")
 
-print("\n" + "="*60)
-print("Done! Images saved to extracted/images/")
-print("="*60)
+    print("\n" + "="*60)
+    print("Done! Images saved to extracted/images/")
+    print("="*60)
 

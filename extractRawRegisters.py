@@ -3,6 +3,66 @@ import re
 import json
 from pathlib import Path
 
+def is_valid_content_line(line: str) -> bool:
+    """
+    Filter out lines that are invalid or weird:
+    - Single character/letter lines
+    - Lines with only numbers or symbols
+    - Very short lines that don't make sense
+    - Repetitive patterns like "rc_rc_rc_"
+    """
+    line_clean = line.strip()
+    
+    # Skip empty lines
+    if not line_clean:
+        return False
+    
+    # Skip single character lines
+    if len(line_clean) == 1:
+        return False
+    
+    # Skip lines with only one word
+    words = line_clean.split()
+    if len(words) == 1:
+        return False
+    
+    # Skip very short lines (2-4 chars) that are likely noise
+    if len(line_clean) <= 4:
+        # Allow short lines that look meaningful (like "0x00", "Bit 0", etc.)
+        # But skip if it's just letters/underscores or repetitive
+        if re.match(r'^[a-z_]+$', line_clean.lower()):
+            return False
+        # Skip if it's a repetitive pattern (like "rc_", "rw_", etc.)
+        if len(set(line_clean.lower().replace('_', ''))) <= 2:
+            return False
+    
+    # Skip lines that are just numbers (like "1234567890")
+    if re.match(r'^[\d\s]+$', line_clean) and len(line_clean) < 5:
+        return False
+    
+    # Skip lines that are mostly special characters
+    special_char_ratio = len(re.findall(r'[^\w\s]', line_clean)) / len(line_clean) if line_clean else 0
+    if special_char_ratio > 0.7 and len(line_clean) < 10:
+        return False
+    
+    # Skip lines that are just repeated characters (like "---" or "===")
+    if len(set(line_clean.replace(' ', ''))) <= 2 and len(line_clean) > 3:
+        return False
+    
+    # Skip repetitive patterns (like "rc_rc_rc_" or "rw_rw_rw_")
+    # Check if the line is just a short pattern repeated
+    if len(line_clean) > 4:
+        # Try to detect if it's a repeating pattern
+        for pattern_len in range(2, min(6, len(line_clean) // 2 + 1)):
+            pattern = line_clean[:pattern_len]
+            # Check if the line is just this pattern repeated
+            if line_clean == pattern * (len(line_clean) // pattern_len) + pattern[:len(line_clean) % pattern_len]:
+                # If pattern is very short (2-4 chars) and repeated, it's likely noise
+                if pattern_len <= 4:
+                    return False
+    
+    return True
+
 def extract_raw_registers(pdf_path: str):
     """
     Extract raw register data from PDF without parsing content.
@@ -186,8 +246,9 @@ def extract_raw_registers(pdf_path: str):
                             j += 1
                             continue
                     
-                    # Add to content
-                    content_lines.append(next_line_text)
+                    # Add to content (filter out invalid lines)
+                    if is_valid_content_line(next_line_text):
+                        content_lines.append(next_line_text)
                     j += 1
                 
                 # Join content
@@ -226,62 +287,63 @@ def extract_raw_registers(pdf_path: str):
 
     return registers
 
-# Usage
-pdf_file = r"C:/Users/ahmed/OneDrive/Desktop/information/machine learning/projects/stm32f10xxx.pdf"
-output_dir = Path("extracted")
-output_dir.mkdir(exist_ok=True)
+# Usage - only run when executed directly, not when imported
+if __name__ == "__main__":
+    pdf_file = r"C:/Users/ahmed/OneDrive/Desktop/information/machine learning/projects/stm32f10xxx.pdf"
+    output_dir = Path("extracted")
+    output_dir.mkdir(exist_ok=True)
 
-print("="*60)
-print("EXTRACTING RAW REGISTER DATA")
-print("="*60)
-print(f"\nPDF: {pdf_file}\n")
+    print("="*60)
+    print("EXTRACTING RAW REGISTER DATA")
+    print("="*60)
+    print(f"\nPDF: {pdf_file}\n")
 
-regs = extract_raw_registers(pdf_file)
-print(f"Total registers found: {len(regs)}")
+    regs = extract_raw_registers(pdf_file)
+    print(f"Total registers found: {len(regs)}")
 
-# Save registers to JSON file with start_page and end_page fields
-json_file = output_dir / "registers.json"
-with open(json_file, 'w', encoding='utf-8') as f:
-    json.dump(regs, f, indent=2, ensure_ascii=False)
+    # Save registers to JSON file with start_page and end_page fields
+    json_file = output_dir / "registers.json"
+    with open(json_file, 'w', encoding='utf-8') as f:
+        json.dump(regs, f, indent=2, ensure_ascii=False)
 
-print(f"[Saved] Registers JSON: {json_file}")
+    print(f"[Saved] Registers JSON: {json_file}")
 
-# Save all registers to a single .txt file
-txt_file = output_dir / "registers_all.txt"
-with open(txt_file, 'w', encoding='utf-8') as f:
-    for r in regs:
-        # Write register header
-        if r['section']:
-            f.write(f"{r['section']} ")
-        f.write(f"{r['full_name']}\n\n")
-        f.write(f"Address offset: {r['address_offset']}\n")
-        f.write(f"Reset value: {r['reset_value']}\n\n")
-        
-        # Write content
-        if r['content']:
-            f.write(r['content'])
-            f.write("\n")
-        
-        # Add separator between registers
-        f.write("\n" + "="*70 + "\n\n")
+    # Save all registers to a single .txt file
+    txt_file = output_dir / "registers_all.txt"
+    with open(txt_file, 'w', encoding='utf-8') as f:
+        for r in regs:
+            # Write register header
+            if r['section']:
+                f.write(f"{r['section']} ")
+            f.write(f"{r['full_name']}\n\n")
+            f.write(f"Address offset: {r['address_offset']}\n")
+            f.write(f"Reset value: {r['reset_value']}\n\n")
+            
+            # Write content
+            if r['content']:
+                f.write(r['content'])
+                f.write("\n")
+            
+            # Add separator between registers
+            f.write("\n" + "="*70 + "\n\n")
 
-print(f"[Saved] All registers .txt: {txt_file}")
+    print(f"[Saved] All registers .txt: {txt_file}")
 
-# Summary
-print("\n[Summary]")
-for i, r in enumerate(regs[:5], 1):
-    page_info = f"Page {r['start_page']}" + (f"-{r['end_page']}" if r['end_page'] != r['start_page'] else "")
-    section_info = f"{r['section']} - " if r['section'] else ""
-    print(f"  {i}. {page_info}: {section_info}{r['full_name']} ({r['short_name']})")
-    print(f"     Offset: {r['address_offset']} | Reset: {r['reset_value']}")
-    print(f"     Content: {len(r['content'])} characters")
+    # Summary
+    print("\n[Summary]")
+    for i, r in enumerate(regs[:5], 1):
+        page_info = f"Page {r['start_page']}" + (f"-{r['end_page']}" if r['end_page'] != r['start_page'] else "")
+        section_info = f"{r['section']} - " if r['section'] else ""
+        print(f"  {i}. {page_info}: {section_info}{r['full_name']} ({r['short_name']})")
+        print(f"     Offset: {r['address_offset']} | Reset: {r['reset_value']}")
+        print(f"     Content: {len(r['content'])} characters")
 
-print(f"\nTotal registers extracted: {len(regs)}")
-print(f"  - Registers JSON: {json_file}")
-print(f"  - All registers .txt: {txt_file}")
+    print(f"\nTotal registers extracted: {len(regs)}")
+    print(f"  - Registers JSON: {json_file}")
+    print(f"  - All registers .txt: {txt_file}")
 
-print("\n" + "="*60)
-print("Done!")
-print("="*60)
+    print("\n" + "="*60)
+    print("Done!")
+    print("="*60)
 
 
