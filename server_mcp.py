@@ -8,6 +8,7 @@ from extractRawRegisters import extract_raw_registers
 from searchRegister import search_register
 from pdfReturnImages import extract_images_from_pages, extract_page_as_image
 from pdfInfo import get_pdf_titles
+from pdfReturnCuted import extract_pdf_pages
 
 app = Server("my-custom-server")
 
@@ -67,6 +68,20 @@ async def list_tools():
                 },
                 "required": ["pdf_path"]
             }
+        ),
+        Tool(
+            name="extract_pdf_pages",
+            description="Extract a range of pages from a PDF and save as a new PDF file. Returns the path to the extracted PDF and metadata.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "pdf_path": {"type": "string", "description": "Path to the source PDF file"},
+                    "start_page": {"type": "integer", "description": "Starting page number (1-indexed)"},
+                    "end_page": {"type": "integer", "description": "Ending page number (1-indexed, inclusive)"},
+                    "output_path": {"type": "string", "description": "Path for the output PDF file. If not provided, auto-generates in extracted/ folder."}
+                },
+                "required": ["pdf_path", "start_page", "end_page"]
+            }
         )
     ]
 
@@ -74,13 +89,17 @@ async def list_tools():
 async def call_tool(name: str, arguments: dict):
     if name == "extract_registers":
         pdf_path = arguments.get("pdf_path", "")
-        output_dir = Path(arguments.get("output_dir", "extracted"))
+        output_dir = arguments.get("output_dir", "extracted")  # Default to "extracted"
         
         if not os.path.exists(pdf_path):
             return [TextContent(type="text", text=f"Error: PDF file not found at {pdf_path}")]
         
         try:
-            output_dir.mkdir(exist_ok=True)
+            # Resolve output_dir to absolute path to ensure consistency
+            if isinstance(output_dir, str):
+                output_dir = Path(output_dir)
+            output_dir = output_dir.resolve()
+            output_dir.mkdir(parents=True, exist_ok=True)
             
             # Extract registers
             registers = extract_raw_registers(pdf_path)
@@ -114,12 +133,16 @@ async def call_tool(name: str, arguments: dict):
     
     elif name == "search_register":
         register_name = arguments.get("register_name", "")
-        json_path = arguments.get("json_path", "extracted/registers.json")
+        json_path = arguments.get("json_path", "extracted/registers.json")  # Default to "extracted/registers.json"
         
         if not register_name:
             return [TextContent(type="text", text="Error: register_name is required")]
         
         try:
+            # Resolve json_path to absolute path if it's a relative path
+            if json_path and not os.path.isabs(json_path):
+                json_path = str(Path(json_path).resolve())
+            
             results = search_register(register_name, json_path)
             
             if not results:
@@ -241,6 +264,28 @@ async def call_tool(name: str, arguments: dict):
             return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
         except Exception as e:
             return [TextContent(type="text", text=f"Error getting PDF titles: {str(e)}")]
+    
+    elif name == "extract_pdf_pages":
+        pdf_path = arguments.get("pdf_path", "")
+        start_page = arguments.get("start_page")
+        end_page = arguments.get("end_page")
+        output_path = arguments.get("output_path", None)
+        
+        # Validate required parameters
+        if not pdf_path:
+            return [TextContent(type="text", text="Error: pdf_path is required")]
+        if start_page is None or end_page is None:
+            return [TextContent(type="text", text="Error: start_page and end_page are required")]
+        
+        if not os.path.exists(pdf_path):
+            return [TextContent(type="text", text=f"Error: PDF file not found at {pdf_path}")]
+        
+        try:
+            result = extract_pdf_pages(pdf_path, start_page, end_page, output_path)
+            # Return JSON directly as string
+            return [TextContent(type="text", text=json.dumps(result, indent=2, ensure_ascii=False))]
+        except Exception as e:
+            return [TextContent(type="text", text=f"Error extracting PDF pages: {str(e)}")]
     
     else:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]

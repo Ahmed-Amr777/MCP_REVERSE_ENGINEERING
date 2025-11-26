@@ -1,10 +1,15 @@
 import pdfplumber
+import sys
 
 def inspect_page_fonts(pdf_path: str, page_num: int, output_txt=None):
     """
     Inspect each line in a PDF page, showing font size and bold info.
     If output_txt is provided, save the result to a file.
+    If output_txt is None, automatically generates filename based on page_num.
     """
+    # Auto-generate output filename if not provided
+    if output_txt is None:
+        output_txt = f"page{page_num}_fonts.txt"
     results = []
     
     with pdfplumber.open(pdf_path) as pdf:
@@ -51,17 +56,25 @@ def inspect_page_fonts(pdf_path: str, page_num: int, output_txt=None):
                 is_line_bold = any('Bold' in c.get('fontname', '') or 'Bd' in c.get('fontname', '') for c in current_line)
                 results.append(f"[Size: {avg_size:.1f}, Bold: {is_line_bold}] {line_text}")
     
-    # Print to console
+    # Print to console with safe encoding
     for r in results:
-        print(r)
+        try:
+            print(r)
+        except UnicodeEncodeError:
+            # Replace problematic Unicode characters that can't be encoded in console
+            safe_r = r.encode(sys.stdout.encoding or 'utf-8', errors='replace').decode(sys.stdout.encoding or 'utf-8', errors='replace')
+            print(safe_r)
     
     # Optional save
     if output_txt:
         with open(output_txt, 'w', encoding='utf-8') as f:
             f.write("\n".join(results))
 
-# Example usage
-pdf_file = r"C:/Users/ahmed/OneDrive/Desktop/information/machine learning/projects/stm32f10xxx.pdf"
-inspect_page_fonts(pdf_file, page_num=52, output_txt="page123_fonts.txt")
-inspect_page_fonts(pdf_file, page_num=222, output_txt="page124_fonts.txt")
-inspect_page_fonts(pdf_file, page_num=125, output_txt="page125_fonts.txt")
+if __name__ == "__main__":
+    # Example usage
+    pdf_file = r"C:/Users/ahmed/OneDrive/Desktop/information/machine learning/projects/stm32f10xxx.pdf"
+    # Output filenames are automatically generated based on page_num
+    # Check page 572 for CAN mailbox registers
+    inspect_page_fonts(pdf_file, page_num=572)
+    inspect_page_fonts(pdf_file, page_num=723)
+    inspect_page_fonts(pdf_file, page_num=724)

@@ -6,9 +6,8 @@ requires-python = ">=3.10"
 dependencies = [
     "pdfplumber>=0.10.0",
     "pymupdf>=1.23.0",
-    "PyPDF2>=3.0.0",
     "mcp>=0.1.0",
-    "fitz>=0.0.1.dev2",
+    "pytesseract>=0.3.13",
 ]
 
 [build-system]

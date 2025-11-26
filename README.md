@@ -27,7 +27,7 @@ This project provides tools for extracting register information from STM32 PDF d
   - Render full pages as images
   - Supports custom DPI settings
 
-- **`showTitles.py`**: Find and display all titles/sections in a PDF
+- **`pdfInfo.py`**: Extract PDF titles (table of contents) and basic PDF information
 
 - **`server_mcp.py`**: MCP server that exposes all functionality as tools
 
@@ -35,8 +35,8 @@ This project provides tools for extracting register information from STM32 PDF d
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- pip (Python package manager)
+- Python 3.10 or higher
+- pip (Python package manager) or uv (recommended)
 
 ### Step 1: Clone the Repository
 
@@ -59,23 +59,22 @@ source venv/bin/activate
 
 ### Step 3: Install Dependencies
 
-Install all required packages:
-
-```bash
-pip install pdfplumber pymupdf PyPDF2 mcp
-```
-
-Or install from a requirements file (if you create one):
-
+**Using pip:**
 ```bash
 pip install -r requirements.txt
 ```
 
+**Using uv (recommended):**
+```bash
+uv pip install -r requirements.txt
+```
+
 **Required Dependencies:**
 - `pdfplumber` - PDF text and character extraction
-- `pymupdf` (PyMuPDF) - PDF image extraction and rendering
-- `PyPDF2` - PDF reading and basic operations
+- `pymupdf` (PyMuPDF) - PDF image extraction, rendering, and table of contents
 - `mcp` - Model Context Protocol server framework
+
+**Note:** Do NOT install the `fitz` package separately. Use `pymupdf` and import it as `import pymupdf as fitz` to avoid conflicts.
 
 ### Step 4: Create Output Directory
 
@@ -85,12 +84,33 @@ The scripts will automatically create the `extracted/` directory, but you can cr
 mkdir extracted
 ```
 
-### Step 5: Configure PDF Path (Optional)
+### Step 5: Configure MCP Server
 
-If you want to use a default PDF path, you can modify the scripts:
-- `extractRawRegisters.py` - Line 230: Update `pdf_file` variable
-- `pdfReturnImages.py` - Line 7: Update `PDF_PATH` variable
-- `showTitles.py` - Update PDF path in the script
+Add the MCP server to your MCP client configuration. Example for Cursor/Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "my-custom-server": {
+      "command": "python",
+      "args": ["path/to/server_mcp.py"]
+    }
+  }
+}
+```
+
+Or if using a virtual environment:
+
+```json
+{
+  "mcpServers": {
+    "my-custom-server": {
+      "command": "path/to/.venv/Scripts/python.exe",
+      "args": ["path/to/server_mcp.py"]
+    }
+  }
+}
+```
 
 ### Step 6: Verify Installation
 
@@ -110,17 +130,29 @@ python server_mcp.py
 
 **If you encounter import errors:**
 - Make sure your virtual environment is activated
-- Verify all dependencies are installed: `pip list`
-- Try reinstalling: `pip install --upgrade pdfplumber pymupdf PyPDF2 mcp`
+- Verify all dependencies are installed: `pip list` or `uv pip list`
+- Try reinstalling: `pip install --upgrade -r requirements.txt`
+
+**If you get `ModuleNotFoundError: No module named 'frontend'`:**
+- This happens if the wrong `fitz` package is installed
+- Solution: The code already uses `import pymupdf as fitz` (fixed)
+- If you have the conflicting `fitz` package installed, remove it:
+  ```bash
+  uv pip uninstall fitz
+  # or
+  pip uninstall fitz
+  ```
+- Do NOT install the `fitz` package separately - use `pymupdf` instead
 
 **If PDF processing fails:**
 - Ensure the PDF file path is correct
 - Check that the PDF is not corrupted
 - Verify you have read permissions for the PDF file
 
-**Windows-specific issues:**
-- If `pymupdf` installation fails, try: `pip install --upgrade pip` first
-- For PyMuPDF, you may need: `pip install pymupdf` (not `fitz`)
+**If MCP server crashes on startup:**
+- Make sure you're using Python 3.10 or higher
+- Verify all dependencies are installed in the correct environment
+- Check that the server script path in MCP config is correct
 
 ## Usage
 
@@ -215,19 +247,21 @@ Extract images from PDF pages.
 - `start_page` (required): Starting page number (1-indexed)
 - `end_page` (required): Ending page number (1-indexed)
 - `output_dir` (optional): Output directory (default: "extracted")
-- `extract_embedded` (optional): Extract embedded images (default: true)
-- `render_full_pages` (optional): Render full pages as images (default: true)
-- `dpi` (optional): DPI for full page rendering (default: 150)
+- `extract_embedded` (required): Extract embedded images (true/false)
+- `render_full_pages` (required): Render full pages as images (true/false)
+- `dpi` (required): DPI resolution for full page rendering
 
-**Returns:** Image extraction summary and paths
+**Returns:** JSON with image paths and metadata
 
-### 5. `read_pdf_titles`
-Read PDF file and extract titles/headers from the first page.
+### 5. `get_pdf_titles`
+Get PDF titles (table of contents) and basic PDF information.
 
 **Parameters:**
 - `pdf_path` (required): Path to the PDF file
+- `start_title` (optional): Starting title number (1-indexed, default: 1)
+- `end_title` (optional): Ending title number (1-indexed, default: 10, or None for all)
 
-**Returns:** PDF metadata and titles
+**Returns:** PDF info (total pages, title) and list of titles with page numbers
 
 ## Running the MCP Server
 
@@ -259,17 +293,18 @@ Each register in the JSON file contains:
 
 - `extracted/registers.json`: All registers in JSON format
 - `extracted/registers_all.txt`: All registers in human-readable text format
-- `extracted/images/`: Extracted images from PDFs
-- `extracted/images_extraction_result.json`: Image extraction metadata
+- `extracted/`: Extracted images from PDFs (saved directly here, no subfolder)
 
 ## Notes
 
 - Register extraction identifies registers by:
-  - Font size >= 11
+  - Font size >= 11 or 12
   - Bold text formatting
   - Contains "register" in the name
 - Registers must have both address offset and reset value to be included
 - Multi-page registers are supported and tracked with start/end pages
+- Content filtering removes single-character lines, short numbers, and repetitive patterns
+- All output directories are optional and default to `"extracted"` if not specified
 
 ## License
 

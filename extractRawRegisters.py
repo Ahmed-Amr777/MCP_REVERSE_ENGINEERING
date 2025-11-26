@@ -156,7 +156,9 @@ def extract_raw_registers(pdf_path: str):
                         continue
                 
                 # Extract short name from parentheses
-                short_name_match = re.search(r'\(([A-Z0-9_]+)\)', full_name)
+                # Pattern allows uppercase, lowercase, numbers, underscores, and 'x' for patterns like CAN_TDLxR
+                # Also handles multiple parentheses like "(CAN_TDLxR) (x=0..2)" by taking the first one
+                short_name_match = re.search(r'\(([A-Za-z0-9_]+)\)', full_name)
                 short_name = short_name_match.group(1) if short_name_match else ""
                 
                 # Look for address offset and reset value in next few lines
@@ -170,7 +172,7 @@ def extract_raw_registers(pdf_path: str):
                 current_extraction_page = page_num
                 end_page = page_num
                 j = i + 1
-                max_pages_to_extract = 50  # Safety limit
+                max_pages_to_extract = 4  # Maximum 4 pages per register
                 pages_extracted = 0
                 
                 while pages_extracted < max_pages_to_extract:

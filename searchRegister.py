@@ -71,7 +71,7 @@ def get_register_by_name(register_name: str, json_path: str = "extracted/registe
 # Example usage
 if __name__ == "__main__":
     # Test search
-    test_name = "Ethernet MAC address1 low register (ETH_MACA1LR)"
+    test_name = "11.12.2 ADC control register 1 (ADC_CR1)"
     results = search_register(test_name)
     
     print(f"Searching for: {test_name}")

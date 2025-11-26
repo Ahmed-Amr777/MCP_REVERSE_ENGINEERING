@@ -1,4 +1,4 @@
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 
 def get_toc_pymupdf(pdf_path: str) -> list:
     """
