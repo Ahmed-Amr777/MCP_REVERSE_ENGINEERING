@@ -8,6 +8,11 @@ dependencies = [
     "pymupdf>=1.23.0",
     "mcp>=0.1.0",
     "pytesseract>=0.3.13",
+    "anthropic>=0.75.0",
+    "python-dotenv>=1.2.1",
+    "logger>=1.4",
+    "openai>=2.8.1",
+    "fastapi>=0.123.9",
 ]
 
 [build-system]
